@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Teste Suno API</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; max-width: 920px; }
+    label { display: block; margin-top: 12px; font-weight: 600; }
+    textarea, input, select { width: 100%; padding: 8px; margin-top: 6px; }
+    button { margin-top: 12px; padding: 10px 16px; }
+    pre { background: #111; color: #eee; padding: 12px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>Teste /api/generate</h1>
+
+  <label for="prompt">Prompt</label>
+  <textarea id="prompt" rows="3">Uma faixa lo-fi com piano suave</textarea>
+
+  <label for="model">Modelo</label>
+  <input id="model" value="chirp-v3-5" />
+
+  <label for="instrumental">Instrumental</label>
+  <select id="instrumental">
+    <option value="false">Não</option>
+    <option value="true">Sim</option>
+  </select>
+
+  <label for="waitAudio">wait_audio</label>
+  <select id="waitAudio">
+    <option value="false">Não</option>
+    <option value="true">Sim</option>
+  </select>
+
+  <button id="send">Enviar</button>
+
+  <h2>Resposta</h2>
+  <pre id="output">(aguardando)</pre>
+
+  <script>
+    const output = document.getElementById('output');
+    document.getElementById('send').addEventListener('click', async () => {
+      const payload = {
+        prompt: document.getElementById('prompt').value,
+        make_instrumental: document.getElementById('instrumental').value === 'true',
+        model: document.getElementById('model').value,
+        wait_audio: document.getElementById('waitAudio').value === 'true'
+      };
+
+      output.textContent = 'Enviando...';
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        output.textContent = `Status: ${res.status}\n\n${text}`;
+      } catch (err) {
+        output.textContent = String(err);
+      }
+    });
+  </script>
+</body>
+</html>

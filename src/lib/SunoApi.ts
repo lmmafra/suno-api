@@ -326,11 +326,80 @@ class SunoApi {
       // await this.click(page, { x: 318, y: 13 });
     } catch(e) {}
 
-    const textarea = page.locator('.custom-textarea');
-    await this.click(textarea);
-    await textarea.pressSequentially('Lorem ipsum', { delay: 80 });
+    const createButton = page
+      .locator('button[aria-label="Create"], button:has-text("Create"), button:has-text("Criar")')
+      .first();
 
-    const button = page.locator('button[aria-label="Create"]').locator('div.flex');
+    const promptCandidates = [
+      page.locator('.custom-textarea'),
+      page.locator('textarea[aria-label*="Song Description" i]'),
+      page.locator('textarea[aria-label*="Descrição" i]'),
+      page.locator('[aria-label*="Song Description" i][contenteditable="true"]'),
+      page.locator('[aria-label*="Descrição" i][contenteditable="true"]'),
+      page.getByRole('textbox'),
+      page.locator('[data-testid*="prompt" i]'),
+      page.locator('textarea[name*="prompt" i]'),
+      page.locator('textarea[placeholder*="Describe" i]'),
+      page.locator('textarea[placeholder*="Descreva" i]'),
+      page.locator('textarea[placeholder]'),
+      page.locator('textarea'),
+      page.locator('[contenteditable="true"]')
+    ];
+    let textarea: Locator | null = null;
+    for (const candidate of promptCandidates) {
+      const first = candidate.first();
+      try {
+        if (await first.isVisible({ timeout: 2000 })) {
+          textarea = first;
+          break;
+        }
+      } catch (_) {}
+    }
+    if (!textarea) {
+      const label = page
+        .locator(':text("Song Description"), :text("Descrição"), :text("Descrição da música")')
+        .first();
+      try {
+        const box = await label.boundingBox();
+        if (box) {
+          await page.mouse.click(box.x + Math.min(120, box.width / 2), box.y + box.height + 40);
+          const fallbackEditable = page.locator('textarea, [contenteditable="true"]').first();
+          if (await fallbackEditable.isVisible({ timeout: 1000 }).catch(() => false)) {
+            textarea = fallbackEditable;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!textarea) {
+      const loginVisible = await Promise.race([
+        page.getByRole('button', { name: /entrar|login|log in|sign in/i }).first().isVisible({ timeout: 2000 }).catch(() => false),
+        page.getByRole('link', { name: /entrar|login|log in|sign in/i }).first().isVisible({ timeout: 2000 }).catch(() => false),
+        page.locator('a[href*="login"], a[href*="sign-in"], a[href*="signin"]').first().isVisible({ timeout: 2000 }).catch(() => false)
+      ]).catch(() => false);
+
+      try {
+        const debugPath = path.join(process.cwd(), 'public', 'captcha-debug.png');
+        await page.screenshot({ path: debugPath, fullPage: true });
+      } catch (_) {}
+
+      if (await createButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+        logger.info('Campo de prompt não encontrado. Tentando disparar o CAPTCHA pelo botão Create.');
+      } else {
+        throw new Error(
+          `Não foi possível localizar o campo de prompt. ` +
+          (loginVisible ? `Parece que a página está pedindo login. ` : ``) +
+          `Verifique se o SUNO_COOKIE está válido ou abra http://localhost:3000/captcha-debug.png para inspecionar. ` +
+          `URL atual: ${page.url()}`
+        );
+      }
+    }
+    if (textarea) {
+      await this.click(textarea);
+      await textarea.pressSequentially('Lorem ipsum', { delay: 80 });
+    }
+
+    const button = createButton.locator('div.flex');
     this.click(button);
 
     const controller = new AbortController();
@@ -342,7 +411,8 @@ class SunoApi {
         while (true) {
           if (wait)
             await waitForRequests(page, controller.signal);
-          const drag = (await challenge.locator('.prompt-text').first().innerText()).toLowerCase().includes('drag');
+          const promptText = await challenge.locator('.prompt-text').first().innerText({ timeout: 5000 }).catch(() => '');
+          const drag = promptText.toLowerCase().includes('drag');
           let captcha: any;
           for (let j = 0; j < 3; j++) { // try several times because sometimes 2Captcha could return an error
             try {

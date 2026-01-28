@@ -1,0 +1,23 @@
+### Testar geração de áudio com Suno API
+POST http://localhost:3000/api/generate
+Content-Type: application/json
+
+{
+  "prompt": "Uma faixa lo-fi com piano suave e batida leve",
+  "make_instrumental": false,
+  "model": "chirp-v3-5",
+  "wait_audio": false
+}
+
+###
+
+### Teste 2: Música instrumental
+POST http://localhost:3000/api/generate
+Content-Type: application/json
+
+{
+  "prompt": "Música ambient relaxante para meditação",
+  "make_instrumental": true,
+  "model": "chirp-v3-5",
+  "wait_audio": false
+}

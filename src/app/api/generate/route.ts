@@ -26,9 +26,15 @@ export async function POST(req: NextRequest) {
         }
       });
     } catch (error: any) {
-      console.error('Error generating custom audio:', JSON.stringify(error.response.data));
-      if (error.response.status === 402) {
-        return new NextResponse(JSON.stringify({ error: error.response.data.detail }), {
+      const responseData = error?.response?.data;
+      const responseStatus = error?.response?.status;
+      const detail = responseData?.detail;
+      const message = error?.message || 'Unknown error';
+
+      console.error('Error generating custom audio:', responseData ? JSON.stringify(responseData) : message);
+
+      if (responseStatus === 402) {
+        return new NextResponse(JSON.stringify({ error: detail || 'Insufficient credits' }), {
           status: 402,
           headers: {
             'Content-Type': 'application/json',
@@ -36,13 +42,20 @@ export async function POST(req: NextRequest) {
           }
         });
       }
-      return new NextResponse(JSON.stringify({ error: 'Internal server error: ' + JSON.stringify(error.response.data.detail) }), {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
+
+      return new NextResponse(
+        JSON.stringify({
+          error: 'Internal server error',
+          detail: detail || message
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
         }
-      });
+      );
     }
   } else {
     return new NextResponse('Method Not Allowed', {
